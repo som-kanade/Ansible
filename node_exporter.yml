@@ -1,0 +1,45 @@
+- 
+  name: install node exporter on ubuntu 
+  hosts: localhost
+  tasks: 
+  - name: create user 
+    user: 
+      name: node_exporter
+      shell: /bin/false
+      system: true
+      state: present
+      createhome: false
+
+  - name: download binary 
+    get_url:
+      url: https://github.com/prometheus/node_exporter/releases/download/v0.18.1/node_exporter-0.18.1.linux-amd64.tar.gz
+      dest: /home/ubuntu 
+      mode: 0664 
+
+  - name: unzip the binary 
+    unarchive:
+      src: /home/ubuntu/node_exporter-0.18.1.linux-amd64.tar.gz
+      dest: /home/ubuntu
+
+  - name: copy exporter 
+    copy: 
+      src: /home/ubuntu/node_exporter-0.18.1.linux-amd64/node_exporter
+      dest: /usr/local/bin/
+      owner: node_exporter
+      group: node_exporter
+
+
+  
+# place this service file in the same folder 
+
+# [Unit]
+# Description=Node Exporter
+# Wants=network-online.target
+# After=network-online.target
+# [Service]
+# User=node_exporter
+# Group=node_exporter
+# Type=simple
+# ExecStart=/usr/local/bin/node_exporter
+# [Install]
+# WantedBy=multi-user.target
