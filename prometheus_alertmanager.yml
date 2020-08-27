@@ -1,0 +1,130 @@
+-
+  name: install promethues on ubuntu 
+  hosts: localhost
+  tasks: 
+  #(sudo useradd --no-create-home --shell /bin/false prometheus)
+  - name: create users 
+    become: yes 
+    user: 
+      name: '{{ item }}'
+      shell: /bin/false
+      system: true
+      state: present
+      createhome: false
+    with_items: 
+    - prometheus
+    - alertmanager
+#(sudo mkdir /etc/prometheus and /var/lib and changing owner to prometheus )
+  - name: create required prometheus dir and files 
+    become: yes 
+    file:
+      path: '{{ item }}'
+      state: directory
+      owner: prometheus
+      group: prometheus
+    with_items: 
+    - /etc/prometheus
+    - /var/lib/prometheus
+    
+  - name: create required alertmanager dir and files 
+    become: yes 
+    file:
+      path: '{{ item }}'
+      state: directory
+      owner: alertmanager
+      group: alertmanager
+    with_items: 
+    - /etc/alertmanager
+  
+
+  #curl -LO https://github.com/prometheus/prometheus/releases/download/v2.0.0/prometheus-2.0.0.linux-amd64.tar.gz
+  - name: download prometheus binary ()
+    become: yes 
+    get_url: 
+      url: '{{ item }}'
+      dest: /home/ubuntu
+      checksum: sha256:e12917b25b32980daee0e9cf879d9ec197e2893924bd1574604eb0f550034d46
+      mode: 0664
+    with_items: 
+    - https://github.com/prometheus/prometheus/releases/download/v2.0.0/prometheus-2.0.0.linux-amd64.tar.gz
+    - https://github.com/prometheus/alertmanager/releases/download/v0.14.0/alertmanager-0.14.0.linux-amd64.tar.gz
+
+  # tar xvf <name>
+  - name: unzip the binaries 
+    unarchive:
+      src: '{{ item }}'
+      dest: /home/ubuntu
+    with_items: 
+    - /home/ubuntu/prometheus-2.0.0.linux-amd64.tar.gz
+    - /home/ubuntu/alertmanager-0.14.0.linux-amd64.tar.gz
+
+  - name: copy the prometheus files 
+    become: yes 
+    copy: 
+      src: /home/ubuntu/prometheus-2.0.0.linux-amd64/{{ item }}
+      dest: /usr/local/bin/
+      owner: prometheus
+      group: prometheus
+      mode: "0755"
+    with_items:
+    - prometheus
+    - promtool
+  
+  - name: copy the alertmanager files 
+    become: yes 
+    copy: 
+      src: /home/ubuntu/alertmanager-0.14.0.linux-amd64/{{ item }}
+      dest: /usr/local/bin/
+      owner: alertmanager
+      group: alertmanager
+      mode: "0755"
+    with_items:
+    - alertmanager
+    - amtool
+
+  - name: copy to etc directory 
+    become: yes 
+    copy: 
+      src: prometheus-2.0.0.linux-amd64/{{ item }}
+      dest: /etc/prometheus
+      owner: prometheus
+      group: prometheus
+    with_items: 
+    - consoles
+    - console_libraries
+
+  
+
+  - name: copy config to etc dir 
+    become: yes
+    copy: 
+      src: prometheus.yml
+      dest: /etc/prometheus/prometheus.yml
+      owner: prometheus
+      group: prometheus
+      mode: "0664"
+
+# create service make sure its in current folder 
+  - name: create service file for prometheus 
+    become: yes 
+    copy: 
+      src: prometheus.service
+      dest: /etc/systemd/system/prometheus.service
+      owner: prometheus
+      group: prometheus
+
+# systenctl daemon reload 
+  - name: daemon reload 
+    become: yes 
+    systemd: 
+      daemon_reload: yes
+
+# start service and enable it 
+  - name: start the service 
+    become: yes 
+    service: 
+      name: prometheus
+      state: started
+      enabled: yes 
+
+
